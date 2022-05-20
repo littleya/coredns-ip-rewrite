@@ -6,6 +6,14 @@ Plugin *IPRewrite*
 
 ## Description
 
+The plugin need configure after address_push, e.g.
+
+``` conf
+ip_rewrite:github.com/littleya/coredns-ip-rewrite
+address_push:github.com/littleya/coredns-address-push
+forward:forward
+```
+
 ## Syntax
 
 ``` conf
