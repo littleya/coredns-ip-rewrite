@@ -2,7 +2,6 @@ package ip_rewrite
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/pkg/log"
@@ -32,7 +31,6 @@ func (re *ipRewriteResponseWriter) WriteMsg(res *dns.Msg) error {
 		conf.lock.RLock()
 		networks := conf.networks
 		conf.lock.RUnlock()
-		fmt.Println(conf.rewriteIPv4)
 
 		for _, answer := range res.Answer {
 			switch rr := answer.(type) {
