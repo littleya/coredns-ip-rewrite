@@ -35,39 +35,43 @@ func (re *ipRewriteResponseWriter) WriteMsg(res *dns.Msg) error {
 		for _, answer := range res.Answer {
 			switch rr := answer.(type) {
 			case *dns.A:
-				addr := rr.A
-				isRewrite := false
-				for _, cidr := range networks {
-					if isRewrite {
-						break
-					}
-					if conf.ipv4ListName == "" {
-						break
-					}
-					if cidr.Contains(addr) {
-						//rewrite
-						rr.A = conf.rewriteIPv4
-						log.Infof("Address %s hit the cidr %s, replace with %s", addr, cidr, conf.rewriteIPv4)
-						isRewrite = true
-						break
+				if conf.ipv4ListName != "" {
+					addr := rr.A
+					isRewrite := false
+					for _, cidr := range networks {
+						if isRewrite {
+							break
+						}
+						if conf.ipv4ListName == "" {
+							break
+						}
+						if cidr.Contains(addr) {
+							//rewrite
+							rr.A = conf.rewriteIPv4
+							log.Infof("Address %s hit the cidr %s, replace with %s", addr, cidr, conf.rewriteIPv4)
+							isRewrite = true
+							break
+						}
 					}
 				}
 			case *dns.AAAA:
-				addr := rr.AAAA
-				isRewrite := false
-				for _, cidr := range networks {
-					if isRewrite {
-						break
-					}
-					if conf.ipv6ListName == "" {
-						break
-					}
-					if cidr.Contains(addr) {
-						//rewrite
-						rr.AAAA = conf.rewriteIPv6
-						log.Infof("Address %s hit the cidr %s, replace with %s", addr, cidr, conf.rewriteIPv6)
-						isRewrite = true
-						break
+				if conf.ipv6ListName != "" {
+					addr := rr.AAAA
+					isRewrite := false
+					for _, cidr := range networks {
+						if isRewrite {
+							break
+						}
+						if conf.ipv6ListName == "" {
+							break
+						}
+						if cidr.Contains(addr) {
+							//rewrite
+							rr.AAAA = conf.rewriteIPv6
+							log.Infof("Address %s hit the cidr %s, replace with %s", addr, cidr, conf.rewriteIPv6)
+							isRewrite = true
+							break
+						}
 					}
 				}
 			}

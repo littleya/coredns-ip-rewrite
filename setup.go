@@ -170,8 +170,8 @@ func parseStanza(c *caddy.Controller) (*RawConfig, error) {
 	if rc.Type == "" || rc.Host == "" || (rc.IPv4 == "" && rc.IPv6 == "") {
 		return rc, errors.New("missing required fields")
 	}
-	if (rc.IPv4 == "" && rc.RewriteIPv4 == nil) || (rc.IPv6 == "" && rc.RewriteIPv6 == nil) {
-		return rc, errors.New("rewrite ipv4 or ipv6 can't be set without ipv4 or ipv6")
+	if (rc.IPv4 == "" && rc.RewriteIPv4 == nil) && (rc.IPv6 == "" && rc.RewriteIPv6 == nil) {
+		return rc, fmt.Errorf("rewrite ipv4 or ipv6 can't be set without ipv4 or ipv6. list: %s, %s. rewrite: %v, %v", rc.IPv4, rc.IPv6, rc.RewriteIPv4, rc.RewriteIPv6)
 	}
 
 	return rc, nil
