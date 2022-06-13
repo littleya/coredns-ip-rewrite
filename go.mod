@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/coredns/caddy v1.1.1
 	github.com/coredns/coredns v1.9.2
+	github.com/go-ping/ping v1.1.0
 	github.com/littleya/coredns-address-push v0.0.0-20220519134311-9ec619b6996e
 	github.com/miekg/dns v1.1.49
 )
@@ -17,6 +18,7 @@ require (
 	github.com/flynn/go-shlex v0.0.0-20150515145356-3f9db97f8568 // indirect
 	github.com/go-resty/resty/v2 v2.7.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/grpc-ecosystem/grpc-opentracing v0.0.0-20180507213350-8e809c8a8645 // indirect
 	github.com/littleya/routeros-rest v0.0.0-20220202035148-77597ceff6a0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
@@ -30,6 +32,7 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4 // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20220502124256-b6088ccd6cba // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.6-0.20210726203631-07bc1bf47fb2 // indirect

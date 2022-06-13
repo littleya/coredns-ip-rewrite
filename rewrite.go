@@ -90,4 +90,8 @@ const (
 	IPv6        = "ipv6"
 	RewriteIPv4 = "rewrite_ipv4"
 	RewriteIPv6 = "rewrite_ipv6"
+
+	CheckEnable   = "check_enable"
+	CheckInterval = "check_interval"
+	CheckURL      = "check_url"
 )

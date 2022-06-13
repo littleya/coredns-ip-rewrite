@@ -19,14 +19,20 @@ import (
 func init() { plugin.Register("ip_rewrite", setup) }
 
 type config struct {
-	networks            []net.IPNet
-	apiClient           addressPush.ApiClient
-	ipv4ListName        string
-	ipv6ListName        string
-	rewriteIPv4         net.IP
-	rewriteIPv6         net.IP
-	periodicSyncEnabled bool
-	lock                *sync.RWMutex
+	networks             []net.IPNet
+	apiClient            addressPush.ApiClient
+	ipv4ListName         string
+	ipv6ListName         string
+	rewriteIPv4          net.IP
+	rewriteIPv6          net.IP
+	rawRewriteIPv4       []net.IP
+	rawRewriteIPv6       []net.IP
+	periodicSyncEnabled  bool
+	periodicDetectEnable bool
+	checkEnable          bool
+	checkInterval        int
+	checkURL             string
+	lock                 *sync.RWMutex
 }
 
 var configs = map[string]*config{}
@@ -61,16 +67,28 @@ func parseRewrite(c *caddy.Controller) (*Rewrite, error) {
 		if _, ok = configs[rc.Hash()]; !ok {
 			client := rc.GetClient()
 			conf = &config{
-				networks:            []net.IPNet{},
-				ipv4ListName:        rc.IPv4,
-				ipv6ListName:        rc.IPv6,
-				rewriteIPv4:         rc.RewriteIPv4,
-				rewriteIPv6:         rc.RewriteIPv6,
+				networks:     []net.IPNet{},
+				ipv4ListName: rc.IPv4,
+				ipv6ListName: rc.IPv6,
+				// rewriteIPv4:         rc.RewriteIPv4[0],
+				// rewriteIPv6:         rc.RewriteIPv6[0],
+				rawRewriteIPv4:      rc.RewriteIPv4,
+				rawRewriteIPv6:      rc.RewriteIPv6,
 				apiClient:           client,
 				periodicSyncEnabled: false,
+				checkEnable:         rc.CheckEnable,
+				checkInterval:       rc.CheckInterval,
+				checkURL:            rc.CheckURL,
 				lock:                &sync.RWMutex{},
 			}
+			if len(rc.RewriteIPv4) > 0 {
+				conf.rewriteIPv4 = rc.RewriteIPv4[0]
+			}
+			if len(rc.RewriteIPv6) > 0 {
+				conf.rewriteIPv6 = rc.RewriteIPv6[0]
+			}
 			conf.syncAddrList()
+			conf.detectLatency()
 			configs[rc.Hash()] = conf
 		}
 		keys = append(keys, rc.Hash())
@@ -82,8 +100,11 @@ func parseRewrite(c *caddy.Controller) (*Rewrite, error) {
 
 type RawConfig struct {
 	addressPush.RawConfig
-	RewriteIPv4 net.IP
-	RewriteIPv6 net.IP
+	RewriteIPv4   []net.IP
+	RewriteIPv6   []net.IP
+	CheckEnable   bool
+	CheckInterval int
+	CheckURL      string
 }
 
 func parseStanza(c *caddy.Controller) (*RawConfig, error) {
@@ -146,32 +167,67 @@ func parseStanza(c *caddy.Controller) (*RawConfig, error) {
 			rc.IPv6 = args[0]
 		case RewriteIPv4:
 			args := c.RemainingArgs()
-			if len(args) != 1 {
+			if len(args) < 1 {
 				return rc, c.ArgErr()
 			}
-			address := net.ParseIP(args[0])
-			if address == nil || address.To4() == nil {
-				return nil, c.ArgErr()
+			for _, addr := range args {
+				address := net.ParseIP(addr)
+				if address == nil || address.To4() == nil {
+					return nil, c.ArgErr()
+				} else {
+					rc.RewriteIPv4 = append(rc.RewriteIPv4, address)
+				}
 			}
-			rc.RewriteIPv4 = address
 		case RewriteIPv6:
 			args := c.RemainingArgs()
-			if len(args) != 1 {
+			if len(args) < 1 {
 				return rc, c.ArgErr()
 			}
-			address := net.ParseIP(args[0])
-			if address == nil || address.To4() != nil {
-				return nil, c.ArgErr()
+			for _, addr := range args {
+				address := net.ParseIP(addr)
+				if address == nil || address.To4() != nil {
+					return nil, c.ArgErr()
+				} else {
+					rc.RewriteIPv6 = append(rc.RewriteIPv6, address)
+				}
 			}
-			rc.RewriteIPv6 = address
+		case CheckEnable:
+			args := c.RemainingArgs()
+			if len(args) < 1 {
+				return rc, c.ArgErr()
+			}
+			if ret, err := strconv.ParseBool(args[0]); err == nil {
+				rc.CheckEnable = ret
+			} else {
+				return rc, c.ArgErr()
+			}
+		case CheckInterval:
+			args := c.RemainingArgs()
+			if len(args) < 1 {
+				return rc, c.ArgErr()
+			}
+			if ret, err := strconv.Atoi(args[0]); err == nil {
+				rc.CheckInterval = ret
+			} else {
+				return rc, c.ArgErr()
+			}
+		case CheckURL:
+			args := c.RemainingArgs()
+			if len(args) < 1 {
+				return rc, c.ArgErr()
+			}
+			rc.CheckURL = args[0]
 		default:
 		}
 	}
 	if rc.Type == "" || rc.Host == "" || (rc.IPv4 == "" && rc.IPv6 == "") {
 		return rc, errors.New("missing required fields")
 	}
-	if (rc.IPv4 == "" && rc.RewriteIPv4 == nil) && (rc.IPv6 == "" && rc.RewriteIPv6 == nil) {
+	if (rc.IPv4 == "" && len(rc.RewriteIPv4) == 0) && (rc.IPv6 == "" && len(rc.RewriteIPv6) == 0) {
 		return rc, fmt.Errorf("rewrite ipv4 or ipv6 can't be set without ipv4 or ipv6. list: %s, %s. rewrite: %v, %v", rc.IPv4, rc.IPv6, rc.RewriteIPv4, rc.RewriteIPv6)
+	}
+	if rc.CheckEnable && (rc.CheckURL == "" || rc.CheckInterval == 0) {
+		return rc, fmt.Errorf("check url or check interval can't be set without check url or check interval. check url: %s, check interval: %d", rc.CheckURL, rc.CheckInterval)
 	}
 
 	return rc, nil
@@ -211,7 +267,39 @@ func (c *config) syncAddrList() {
 				c.networks = networks
 				c.lock.Unlock()
 
-				time.Sleep(time.Second * 15)
+				time.Sleep(15 * time.Second)
+			}
+		}()
+	}
+}
+
+func (c *config) detectLatency() {
+	if !c.periodicDetectEnable {
+		c.periodicDetectEnable = true
+		if !c.checkEnable {
+			return
+		}
+
+		go func() {
+			for {
+				log.Infof("Detecting latency from plugin ip rewrite.")
+				if ret := detect(c.rawRewriteIPv4, c.checkURL); ret != nil && !ret.Equal(c.rewriteIPv4) {
+					c.lock.Lock()
+					c.rewriteIPv4 = ret
+					c.lock.Unlock()
+					log.Infof("Update ip rewrite. ipv4: %s", ret.String())
+				} else {
+					log.Warningf("Failed detect latency for ipv4")
+				}
+				if ret := detect(c.rawRewriteIPv6, c.checkURL); ret != nil && !ret.Equal(c.rewriteIPv6) {
+					c.lock.Lock()
+					c.rewriteIPv6 = ret
+					c.lock.Unlock()
+					log.Infof("Update ip rewrite. ipv6: %s", ret.String())
+				} else {
+					log.Warningf("Failed detect latency for ipv6")
+				}
+				time.Sleep(time.Duration(c.checkInterval) * time.Second)
 			}
 		}()
 	}
