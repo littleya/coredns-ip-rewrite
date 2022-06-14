@@ -27,17 +27,20 @@ func pingHost(host string) latencyRet {
 		return latencyRet{}
 	}
 	p.Count = 3
+	p.Timeout = 3 * time.Second
+	defer p.Stop()
+
 	err = p.Run()
 	if err != nil {
 		log.Errorf("failed to run pinger for %s: %v", host, err)
 		return latencyRet{}
 	}
-	return latencyRet{
-		loss:    float32(p.Statistics().PacketsRecv / p.Statistics().PacketsSent),
+	r := latencyRet{
+		loss:    float32(p.Statistics().PacketsRecv) / float32(p.Statistics().PacketsSent),
 		latency: int(p.Statistics().AvgRtt),
 		host:    host,
 	}
-
+	return r
 }
 
 func fetchHost(host, uri string) bool {
@@ -46,21 +49,26 @@ func fetchHost(host, uri string) bool {
 		log.Errorf("failed to parse url %s: %v", uri, err)
 		return false
 	}
+
 	dialer := &net.Dialer{
 		Timeout: 3 * time.Second,
 	}
-	http.DefaultTransport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		if strings.Contains(addr, u.Host) {
-			if addr := net.ParseIP(addr); addr.To4() != nil {
-				return dialer.DialContext(ctx, network, fmt.Sprintf("%s:443", host))
-			} else {
-				return dialer.DialContext(ctx, network, fmt.Sprintf("[%s]:443", host))
+	transport := http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			if strings.Contains(addr, u.Host) {
+				if addr := net.ParseIP(addr); addr.To4() != nil {
+					return dialer.DialContext(ctx, network, fmt.Sprintf("%s:443", host))
+				} else {
+					return dialer.DialContext(ctx, network, fmt.Sprintf("[%s]:443", host))
+				}
 			}
-		}
-		return dialer.DialContext(ctx, network, addr)
+			return dialer.DialContext(ctx, network, addr)
+		},
 	}
-
-	resp, err := http.Get(uri)
+	c := http.Client{
+		Transport: &transport,
+	}
+	resp, err := c.Get(uri)
 	if err != nil {
 		log.Errorf("failed to fetch %s via host %s: %v", uri, host, err)
 		return false
