@@ -288,6 +288,8 @@ func (c *config) detectLatency() {
 					c.rewriteIPv4 = ret
 					c.lock.Unlock()
 					log.Infof("Update ip rewrite. ipv4: %s", ret.String())
+				} else if ret.Equal(c.rewriteIPv4) {
+					log.Infof("No update ip rewrite need. ipv4: %s", ret.String())
 				} else {
 					log.Warningf("Failed detect latency for ipv4")
 				}
@@ -297,6 +299,8 @@ func (c *config) detectLatency() {
 					c.rewriteIPv6 = ret
 					c.lock.Unlock()
 					log.Infof("Update ip rewrite. ipv6: %s", ret.String())
+				} else if ret.Equal(c.rewriteIPv6) {
+					log.Infof("No update ip rewrite need. ipv6: %s", ret.String())
 				} else {
 					log.Warningf("Failed detect latency for ipv6")
 				}
