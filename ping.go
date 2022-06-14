@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/coredns/coredns/plugin/pkg/log"
@@ -38,20 +40,29 @@ func pingHost(host string) latencyRet {
 
 }
 
-func fetchHost(host, url string) bool {
+func fetchHost(host, uri string) bool {
+	u, err := url.Parse(uri)
+	if err != nil {
+		log.Errorf("failed to parse url %s: %v", uri, err)
+		return false
+	}
 	dialer := &net.Dialer{
 		Timeout: 3 * time.Second,
 	}
 	http.DefaultTransport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		if addr := net.ParseIP(addr); addr.To4() != nil {
-			return dialer.DialContext(ctx, network, fmt.Sprintf("%s:443", host))
-		} else {
-			return dialer.DialContext(ctx, network, fmt.Sprintf("[%s]:443", host))
+		if strings.Contains(addr, u.Host) {
+			if addr := net.ParseIP(addr); addr.To4() != nil {
+				return dialer.DialContext(ctx, network, fmt.Sprintf("%s:443", host))
+			} else {
+				return dialer.DialContext(ctx, network, fmt.Sprintf("[%s]:443", host))
+			}
 		}
+		return dialer.DialContext(ctx, network, addr)
 	}
-	resp, err := http.Get(url)
+
+	resp, err := http.Get(uri)
 	if err != nil {
-		log.Errorf("failed to fetch %s via host %s: %v", url, host, err)
+		log.Errorf("failed to fetch %s via host %s: %v", uri, host, err)
 		return false
 	} else if resp.StatusCode/100 != 2 {
 		return false
