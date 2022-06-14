@@ -80,7 +80,7 @@ func detect(hosts []net.IP, url string) net.IP {
 	// Sort by loss DESC
 	sort.SliceStable(latencyRets, func(i, j int) bool { return latencyRets[i].loss > latencyRets[j].loss })
 	// Sort by latency ASC
-	sort.SliceStable(latencyRets, func(i, j int) bool { return latencyRets[i].latency < int(latencyRets[j].loss) })
+	sort.SliceStable(latencyRets, func(i, j int) bool { return latencyRets[i].latency < latencyRets[j].latency })
 
 	for _, l := range latencyRets {
 		if ret := fetchHost(l.host, url); ret {
