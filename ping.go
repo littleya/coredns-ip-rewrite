@@ -43,8 +43,11 @@ func fetchHost(host, url string) bool {
 		Timeout: 3 * time.Second,
 	}
 	http.DefaultTransport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		addr = fmt.Sprintf("%s:443", host)
-		return dialer.DialContext(ctx, network, addr)
+		if addr := net.ParseIP(addr); addr.To4() != nil {
+			return dialer.DialContext(ctx, network, fmt.Sprintf("%s:443", host))
+		} else {
+			return dialer.DialContext(ctx, network, fmt.Sprintf("[%s]:443", host))
+		}
 	}
 	resp, err := http.Get(url)
 	if err != nil {
