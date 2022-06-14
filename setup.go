@@ -282,7 +282,7 @@ func (c *config) detectLatency() {
 
 		go func() {
 			for {
-				log.Infof("Detecting latency from plugin ip rewrite.")
+				log.Infof("Detecting ipv4 latency from plugin ip rewrite.")
 				if ret := detect(c.rawRewriteIPv4, c.checkURL); ret != nil && !ret.Equal(c.rewriteIPv4) {
 					c.lock.Lock()
 					c.rewriteIPv4 = ret
@@ -291,6 +291,7 @@ func (c *config) detectLatency() {
 				} else {
 					log.Warningf("Failed detect latency for ipv4")
 				}
+				log.Infof("Detecting ipv6 latency from plugin ip rewrite.")
 				if ret := detect(c.rawRewriteIPv6, c.checkURL); ret != nil && !ret.Equal(c.rewriteIPv6) {
 					c.lock.Lock()
 					c.rewriteIPv6 = ret
