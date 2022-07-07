@@ -72,10 +72,9 @@ func fetchHost(host, uri string) bool {
 	if err != nil {
 		log.Errorf("failed to fetch %s via host %s: %v", uri, host, err)
 		return false
-	} else if resp.StatusCode/100 != 2 {
-		return false
 	}
-	return true
+	defer resp.Body.Close()
+	return resp.StatusCode/100 == 2
 }
 
 func detect(hosts []net.IP, url string) net.IP {
